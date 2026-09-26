@@ -27,3 +27,8 @@ python3 -m unittest -v
 
 Les variantes visuelles sont accessibles avec `?variant=orbit`, `?variant=atlas` et `?variant=depth`.
 
+## Interface vivante
+
+L'interface traduit l'état au lieu de lui appliquer un décor fixe. La saison choisit le langage et la palette. La pression règle l'ampleur des halos. L'entropie accélère le rythme et densifie le ciel. La vitalité des habitants modifie leur respiration. Les événements récents déterminent si l'Air, l'Eau, le Feu ou la Terre domine la scène.
+
+Un changement de saison, la naissance d'une espèce et un refus du Feu traversent brièvement toutes les vues. La navigation reste libre : l'expression change, mais le visiteur garde le choix entre Orbite, Atlas et Profondeur.
