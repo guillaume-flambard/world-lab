@@ -16,6 +16,42 @@ const positions = {
 let state = null;
 let events = [];
 let selected = 'root-tree';
+let lastEventId = null;
+let lastSeason = null;
+let transitionTimer = null;
+
+const seasonLanguage = {
+  exploration: {
+    title: 'Un monde qui cherche.',
+    story: "Les signaux s'écartent pour trouver ce qui mérite une question.",
+    accent: '#a8e6ef',
+    glow: 'rgba(94, 190, 214, .24)',
+    night: '#07101b',
+  },
+  croissance: {
+    title: 'Un monde qui prend racine.',
+    story: 'Les relations se rapprochent et les possibilités cherchent une forme durable.',
+    accent: '#91d5a2',
+    glow: 'rgba(105, 199, 143, .25)',
+    night: '#07150f',
+  },
+  récolte: {
+    title: 'Un monde qui transforme.',
+    story: 'Les futurs éprouvés deviennent des actes, puis des preuves partageables.',
+    accent: '#e7ba74',
+    glow: 'rgba(231, 172, 92, .25)',
+    night: '#171008',
+  },
+  repos: {
+    title: 'Un monde qui se souvient.',
+    story: 'Le rythme ralentit pour relire les traces, restaurer les forces et laisser mûrir les croyances.',
+    accent: '#afa8e8',
+    glow: 'rgba(133, 124, 211, .25)',
+    night: '#0b0b19',
+  },
+};
+
+const phaseNames = { air: 'Air', eau: 'Eau', feu: 'Feu', terre: 'Terre' };
 
 function variantFromUrl() {
   const value = new URLSearchParams(location.search).get('variant');
@@ -45,10 +81,114 @@ async function refresh() {
     state = await stateResponse.json();
     events = (await eventResponse.json()).events;
     document.querySelector('#connection-dot').classList.add('live');
+    applyWorldExpression();
     render();
   } catch (error) {
     document.querySelector('#connection-dot').classList.remove('live');
   }
+}
+
+function clamp(value, minimum = 0, maximum = 1) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function fallbackPosition(id) {
+  const hash = [...id].reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 7);
+  const angle = (hash % 360) * (Math.PI / 180);
+  const radius = 19 + (hash % 17);
+  return [50 + Math.cos(angle) * radius, 50 + Math.sin(angle) * radius];
+}
+
+function positionFor(id, index) {
+  const [baseX, baseY] = positions[id] ?? fallbackPosition(id);
+  const pressure = state?.climate?.pressure ?? 0;
+  const entropy = state?.climate?.entropy ?? 0;
+  const tick = state?.tick ?? 0;
+  const driftX = Math.sin((tick + index * 11) / 9) * (0.5 + pressure * 3.2);
+  const driftY = Math.cos((tick + index * 7) / 11) * (0.5 + entropy * 2.6);
+  return [clamp(baseX + driftX, 10, 90), clamp(baseY + driftY, 10, 90)];
+}
+
+function expressionForWorld() {
+  const recent = events.slice(-16);
+  const counts = { air: 0, eau: 0, feu: 0, terre: 0 };
+  recent.forEach((event) => { counts[event.phase] = (counts[event.phase] ?? 0) + 1; });
+  const dominant = Object.entries(counts).sort((left, right) => right[1] - left[1])[0]?.[0] ?? 'terre';
+  const entropy = state.climate.entropy;
+  const pressure = state.climate.pressure;
+  const vitalityValues = Object.values(state.beings).map((being) => being.health ?? 0.7);
+  const vitality = vitalityValues.reduce((total, value) => total + value, 0) / Math.max(1, vitalityValues.length);
+  const mood = entropy > 0.66 ? 'tendu' : entropy > 0.36 ? 'attentif' : 'calme';
+  const rhythm = pressure > 0.66 ? 'dense' : pressure > 0.28 ? 'en mouvement' : 'ample';
+  const season = seasonLanguage[state.season] ?? seasonLanguage.exploration;
+  return { ...season, dominant, vitality, mood, rhythm };
+}
+
+function signalTransition(event) {
+  if (!lastEventId || event.event_id === lastEventId) return;
+  const body = document.body;
+  body.classList.remove('event-burst', 'birth-burst', 'refusal-burst', 'season-burst');
+  body.style.setProperty('--phase-burst', {
+    air: 'rgba(168, 230, 239, .24)',
+    eau: 'rgba(85, 116, 201, .28)',
+    feu: 'rgba(244, 123, 69, .28)',
+    terre: 'rgba(184, 146, 102, .26)',
+  }[event.phase] ?? 'rgba(168, 230, 239, .2)');
+  body.classList.add('event-burst');
+  if (event.species === 'naissance-espèce') body.classList.add('birth-burst');
+  if (event.species === 'feu-refusé') body.classList.add('refusal-burst');
+  if (lastSeason && state.season !== lastSeason) body.classList.add('season-burst');
+  clearTimeout(transitionTimer);
+  transitionTimer = setTimeout(() => body.classList.remove('event-burst', 'birth-burst', 'refusal-burst', 'season-burst'), 1700);
+}
+
+function applyWorldExpression() {
+  const expression = expressionForWorld();
+  const root = document.documentElement;
+  const body = document.body;
+  const event = state.last_event ?? events.at(-1);
+  root.style.setProperty('--world-accent', expression.accent);
+  root.style.setProperty('--world-glow', expression.glow);
+  root.style.setProperty('--world-night', expression.night);
+  root.style.setProperty('--world-temperature', state.climate.temperature);
+  root.style.setProperty('--world-pressure', state.climate.pressure);
+  root.style.setProperty('--world-entropy', state.climate.entropy);
+  root.style.setProperty('--world-vitality', expression.vitality.toFixed(3));
+  const pulseDuration = 5.8 - state.climate.entropy * 3.1;
+  root.style.setProperty('--pulse-duration', `${pulseDuration.toFixed(2)}s`);
+  root.style.setProperty('--pulse-offset', `${(-pulseDuration / 2).toFixed(2)}s`);
+  root.style.setProperty('--world-overlay-opacity', (0.08 + state.climate.pressure * 0.24).toFixed(3));
+  root.style.setProperty('--world-noise-opacity', (0.16 + state.climate.entropy * 0.24).toFixed(3));
+  root.style.setProperty('--world-aura-opacity', (0.08 + state.climate.pressure * 0.42).toFixed(3));
+  root.style.setProperty('--world-scale', (1 + state.climate.entropy * 0.06).toFixed(3));
+  root.style.setProperty('--turn-duration', `${(90 - state.climate.entropy * 55).toFixed(1)}s`);
+  root.style.setProperty('--globe-breathe-scale', (1 + state.climate.pressure * 0.018).toFixed(4));
+  root.style.setProperty('--vitality-opacity', (0.55 + expression.vitality * 0.45).toFixed(3));
+  root.style.setProperty('--vitality-brightness', (0.9 + expression.vitality * 0.35).toFixed(3));
+  root.style.setProperty('--world-life-glow', `rgba(139, 209, 154, ${(0.06 + expression.vitality * 0.18).toFixed(3)})`);
+  root.style.setProperty('--globe-shadow', `${Math.round(60 + state.climate.pressure * 90)}px`);
+  body.dataset.season = state.season;
+  body.dataset.dominant = expression.dominant;
+  body.dataset.mood = expression.mood;
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', expression.night);
+  document.querySelector('#world-mood').textContent = `${expression.mood} · ${phaseNames[expression.dominant]} domine`;
+  if (event) signalTransition(event);
+  lastEventId = event?.event_id ?? lastEventId;
+  lastSeason = state.season;
+}
+
+function expressionPanel() {
+  const expression = expressionForWorld();
+  const species = state.earth.species.length;
+  return `<section class="world-expression" aria-label="Expression actuelle du monde">
+    <div class="expression-head"><span>Forme sensible</span><strong>${escapeHtml(expression.mood)}</strong></div>
+    <p>${escapeHtml(expression.story)}</p>
+    <div class="expression-facts">
+      <span><i class="phase-seed ${expression.dominant}"></i>${phaseNames[expression.dominant]} domine</span>
+      <span>${escapeHtml(expression.rhythm)}</span>
+      <span>${species} espèces connues</span>
+    </div>
+  </section>`;
 }
 
 function escapeHtml(value) {
@@ -107,18 +247,21 @@ function climate() {
 }
 
 function orbitView() {
-  const nodes = Object.entries(state.beings).map(([id, being]) => {
-    const [x, y] = positions[id] ?? [50, 50];
-    return `<button class="being-node" data-being="${id}" data-phase="${being.phase ?? 'terre'}" data-label="${escapeHtml(being.name)}" style="left:${x}%;top:${y}%" aria-label="Observer ${escapeHtml(being.name)}"></button>`;
+  const expression = expressionForWorld();
+  const nodes = Object.entries(state.beings).map(([id, being], index) => {
+    const [x, y] = positionFor(id, index);
+    const health = being.health ?? 0.7;
+    return `<button class="being-node${selected === id ? ' selected' : ''}" data-being="${id}" data-phase="${being.phase ?? 'terre'}" data-label="${escapeHtml(being.name)}" style="left:${x}%;top:${y}%;--health:${health};--node-scale:${(.76 + health * .36).toFixed(3)};--node-delay:${index * -.7}s" aria-label="Observer ${escapeHtml(being.name)}, vitalité ${Math.round(health * 100)} pour cent"></button>`;
   }).join('');
   return `<section class="orbit-layout">
     <div class="observatory">
-      <div class="observatory-copy"><h1>Un monde qui se souvient.</h1><p>Chaque point est un être. Touchez-le pour écouter son histoire, ses croyances et ce qu'il devient.</p></div>
-      <div class="globe-shell"><div class="climate-ring"></div><div class="globe"></div>${nodes}</div>
+      <div class="observatory-copy"><span class="season-kicker">saison ${escapeHtml(state.season)}</span><h1>${escapeHtml(expression.title)}</h1><p>${escapeHtml(expression.story)} Chaque point reste un être que vous pouvez écouter.</p></div>
+      <div class="globe-shell"><div class="world-aura aura-one"></div><div class="world-aura aura-two"></div><div class="climate-ring"></div><div class="globe"></div>${nodes}</div>
     </div>
     <aside class="world-sidebar">
       <p>Le monde maintenant</p>
       <blockquote class="bulletin">${escapeHtml(state.bulletin)}</blockquote>
+      ${expressionPanel()}
       ${elements()}
       ${climate()}
       <section class="inspector" id="inspector">${beingInspector()}</section>
@@ -128,19 +271,26 @@ function orbitView() {
 
 function atlasView() {
   const beingButtons = Object.entries(state.beings).map(([id, being]) => `<button class="being-button" data-being="${id}"><i></i><span>${escapeHtml(being.name)}<small>${escapeHtml(being.where)}</small></span></button>`).join('');
-  const fieldNodes = Object.entries(state.beings).map(([id, being]) => {
-    const [x, y] = positions[id] ?? [50, 50];
-    return `<button class="field-node" data-being="${id}" style="left:${x}%;top:${y}%"><i></i><span>${escapeHtml(being.name)}</span><small>${escapeHtml(being.archetype)}</small></button>`;
+  const placed = Object.entries(state.beings).map(([id, being], index) => ({ id, being, position: positionFor(id, index) }));
+  const fieldNodes = placed.map(({ id, being, position: [x, y] }) => {
+    return `<button class="field-node" data-being="${id}" data-phase="${being.phase ?? 'terre'}" style="left:${x}%;top:${y}%;--health:${being.health ?? .7}"><i></i><span>${escapeHtml(being.name)}</span><small>${escapeHtml(being.archetype)}</small></button>`;
   }).join('');
+  const placedById = Object.fromEntries(placed.map((item) => [item.id, item]));
+  const relationLines = placed.flatMap(({ id, being, position: [x1, y1] }) => (being.relations ?? []).map((relation) => {
+    const target = placedById[relation];
+    if (!target || id > relation) return '';
+    return `<line x1="${x1}" y1="${y1}" x2="${target.position[0]}" y2="${target.position[1]}"></line>`;
+  })).join('');
   const recent = events.slice(-12).reverse().map((event) => `<div class="event" data-phase="${event.phase}"><strong>${eventLabel(event)}</strong><small>tick ${event.tick} · ${escapeHtml(event.actor)}</small></div>`).join('');
   return `<section class="atlas-layout">
     <aside class="being-list"><h1>Les habitants</h1>${beingButtons}</aside>
     <div class="field-map">
+      <svg class="relation-field" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${relationLines}</svg>
       <div class="contour" style="inset:12% 8% 18% 16%;transform:rotate(8deg)"></div>
       <div class="contour" style="inset:25% 24% 30% 28%;transform:rotate(-16deg)"></div>
       <div class="contour" style="inset:39% 37% 40% 42%"></div>
       ${fieldNodes}
-      <blockquote class="map-bulletin">${escapeHtml(state.bulletin)}</blockquote>
+      <div class="map-narrative">${expressionPanel()}<blockquote class="map-bulletin">${escapeHtml(state.bulletin)}</blockquote></div>
     </div>
     <aside class="event-river"><h2>La rivière du temps</h2>${recent}</aside>
   </section>`;
@@ -152,8 +302,9 @@ function depthLayer(phase, name, value) {
 }
 
 function depthView() {
+  const expression = expressionForWorld();
   return `<section class="depth-layout">
-    <header class="depth-header"><h1>Descendre dans le réel.</h1><p>Un signal traverse des couches de garantie. L'Air perçoit, l'Eau imagine, le Feu transforme et la Terre se souvient.</p></header>
+    <header class="depth-header"><span class="season-kicker">${escapeHtml(expression.mood)} · ${escapeHtml(expression.rhythm)}</span><h1>${escapeHtml(expression.title)}</h1><p>${escapeHtml(expression.story)} Un signal traverse ensuite les couches de garantie: l'Air perçoit, l'Eau imagine, le Feu transforme et la Terre se souvient.</p></header>
     <div class="strata">
       <div class="layers">
         ${depthLayer('air', 'Air', state.air.signals)}
@@ -190,4 +341,3 @@ window.addEventListener('popstate', render);
 
 refresh();
 setInterval(refresh, 2000);
-
