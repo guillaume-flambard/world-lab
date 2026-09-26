@@ -25,7 +25,19 @@ python3 -m unittest -v
 * `/api/events?limit=50` : derniers événements.
 * `/api/health` : sonde de santé.
 
-Les variantes visuelles sont accessibles avec `?variant=orbit`, `?variant=atlas` et `?variant=depth`.
+La page d’accueil ouvre la vue `Comprendre`. Les variantes visuelles sont accessibles avec `?variant=orbit`, `?variant=atlas` et `?variant=depth`.
+
+## Comprendre le monde
+
+La vue par défaut explique avant de représenter. Elle montre :
+
+* l’étape qui vient de finir et la prochaine action ;
+* les huit étapes exactes du cycle ;
+* le rôle, les actions codées et les limites de chaque habitant ;
+* les huit derniers événements en français courant ;
+* la différence entre réalité, connaissance, croyance et possibilité.
+
+Les détails distinguent volontairement le rôle raconté d’un habitant et ce qu’il sait réellement faire dans la simulation actuelle.
 
 ## Interface vivante
 

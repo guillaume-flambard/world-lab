@@ -1,7 +1,8 @@
 const variants = [
+  { key: 'guide', name: 'Comprendre' },
   { key: 'orbit', name: 'Orbite' },
   { key: 'atlas', name: 'Atlas' },
-  { key: 'depth', name: 'Profondeur' },
+  { key: 'depth', name: 'Couches' },
 ];
 
 const positions = {
@@ -53,9 +54,67 @@ const seasonLanguage = {
 
 const phaseNames = { air: 'Air', eau: 'Eau', feu: 'Feu', terre: 'Terre' };
 
+const cycleSteps = [
+  { step: 1, phase: 'air', actor: 'Veilleurs', title: 'Observer', detail: "Les Veilleurs regardent l'Arbre racine et produisent un point de vue. Une observation reste une connaissance située, pas la réalité entière." },
+  { step: 2, phase: 'air', actor: 'Gardiens des racines', title: 'Observer autrement', detail: "Les Gardiens observent le même Arbre. Le World conserve les deux regards pour mesurer ce qu'ils partagent et ce qui dépend de l'observateur." },
+  { step: 3, phase: 'eau', actor: 'Veilleurs', title: 'Reconnaître un motif', detail: 'Les observations répétées forment un nuage d’enquête. Après trois occurrences, le World reconnaît enquête comme une nouvelle espèce de connaissance.' },
+  { step: 4, phase: 'eau', actor: 'Jardinier', title: 'Imaginer un futur', detail: "Le Jardinier propose un rêve de soin, de récolte ou de migration. Ce futur est une possibilité. Il n'a encore rien changé au monde." },
+  { step: 5, phase: 'eau', actor: 'Communautés', title: 'Comparer les croyances', detail: "Les Gardiens veulent préserver, les Récolteurs veulent transformer avec consentement et les Veilleurs demandent une preuve. Leur désaccord reste distinct des faits." },
+  { step: 6, phase: 'feu', actor: 'Jardinier et World', title: 'Tenter une transformation', detail: "Le Jardinier demande un soin. Le World vérifie l'énergie, la saison et les futurs disponibles. Il accepte et produit un reçu, ou refuse sans modifier la Terre." },
+  { step: 7, phase: 'air', actor: 'Arbre racine', title: 'Propager une vague', detail: "L'Arbre envoie un signal au Jardinier, aux Veilleurs puis aux Récolteurs. Son amplitude baisse quand les tensions de croyance augmentent." },
+  { step: 0, phase: 'terre', actor: 'Jardinier', title: 'Se reposer', detail: "Le Jardinier récupère une unité d'énergie. Si trop de futurs se sont accumulés, le plus ancien retourne au compost." },
+];
+
+const actorExplanations = {
+  world: {
+    name: 'Le World',
+    kind: 'système',
+    role: 'Gardien des lois et du temps',
+    summary: 'Il avance le cycle, vérifie les limites, accepte ou refuse les transformations et écrit les preuves.',
+    actions: ['fait avancer un tick toutes les deux secondes', 'choisit l’étape du cycle', 'sépare état, observations, rêves et croyances', 'persiste state.json et ajoute chaque événement à events.jsonl'],
+    limit: 'Il ne possède ni intention personnelle ni croyance dans cette expérience.',
+  },
+  'root-tree': {
+    role: 'Mémoire fondatrice à protéger',
+    summary: "Il représente la continuité du monde. Il reçoit les soins et propage une vague vers les autres habitants.",
+    actions: ['reçoit les transformations acceptées', 'gagne de la vitalité après un soin', 'émet une vague à la septième étape'],
+    limit: 'Il ne choisit pas lui-même le soin qui lui est appliqué.',
+  },
+  'river-stone': {
+    role: 'Témoin de provenance',
+    summary: 'Il montre qu’un artefact peut raconter son origine, du grès au sable puis au quartz.',
+    actions: ['porte une chaîne d’origine', 'reste relié aux Veilleurs comme objet de preuve'],
+    limit: 'Il ne déclenche encore aucune action dans la simulation.',
+  },
+  gardener: {
+    role: 'Agent de soin et de transformation',
+    summary: 'Il imagine les futurs, demande leur réalisation et récupère son énergie pendant le repos.',
+    actions: ['fait naître un rêve à la quatrième étape', 'tente un soin à la sixième étape', 'dépense deux unités d’énergie si le soin est accepté', 'récupère une unité au repos'],
+    limit: 'Il ne peut pas contourner un refus du World.',
+  },
+  rootkeepers: {
+    role: 'Communauté de préservation',
+    summary: "Ils observent l'Arbre et défendent la continuité de ce qui existe déjà.",
+    actions: ['produisent le second regard du cycle', 'portent la croyance préserver', 'participent aux tensions avec les Récolteurs'],
+    limit: 'Ils ne bloquent pas directement une transformation. Leur position reste une croyance exprimée.',
+  },
+  harvesters: {
+    role: 'Communauté de transformation',
+    summary: 'Ils défendent une transformation qui nourrit le monde et respecte le consentement.',
+    actions: ['portent la croyance transformer avec consentement', 'reçoivent les vagues émises par l’Arbre', 'participent aux tensions de croyance'],
+    limit: 'Ils ne récoltent rien directement dans la simulation actuelle.',
+  },
+  watchers: {
+    role: 'Communauté d’observation',
+    summary: 'Ils cherchent des preuves, regroupent les motifs répétés et maintiennent le doute visible.',
+    actions: ['produisent le premier regard du cycle', 'créent les nuages d’enquête', 'demandent une preuve supplémentaire dans les débats'],
+    limit: 'Leur observation est une connaissance située. Elle ne devient pas automatiquement une vérité.',
+  },
+};
+
 function variantFromUrl() {
   const value = new URLSearchParams(location.search).get('variant');
-  return variants.some((item) => item.key === value) ? value : 'orbit';
+  return variants.some((item) => item.key === value) ? value : 'guide';
 }
 
 function setVariant(key) {
@@ -230,6 +289,167 @@ function beingInspector(id = selected) {
   `;
 }
 
+function actorName(actor) {
+  const fixed = {
+    world: 'Le World',
+    constitution: 'La Constitution',
+    communities: 'Les communautés',
+  };
+  return state.beings[actor]?.name ?? fixed[actor] ?? actor;
+}
+
+function proposalName(value) {
+  return value ? String(value).replace(/^dream-/, 'proposition ') : 'proposition choisie';
+}
+
+function explainEvent(event) {
+  const payload = event.payload ?? {};
+  const explanations = {
+    observation: {
+      title: `${actorName(event.actor)} ${['watchers', 'rootkeepers', 'communities'].includes(event.actor) ? 'ont observé' : 'a observé'} l’Arbre`,
+      type: 'connaissance',
+      text: `Un nouveau point de vue a été enregistré. ${payload.distinct_events ?? 0} événements distincts sont connus après ${payload.views ?? 0} regards. Cela décrit ce que l’observateur a vu, pas toute la réalité.`,
+    },
+    'nuage-enquête': {
+      title: 'Un motif répété devient une enquête',
+      type: 'connaissance',
+      text: `Le motif observation, preuve, question est apparu ${payload.occurrences ?? 0} fois. Le World le regroupe pour pouvoir le suivre sans le déclarer vrai pour autant.`,
+    },
+    'naissance-espèce': {
+      title: `Une nouvelle espèce est reconnue: ${payload.name ?? 'inconnue'}`,
+      type: 'réalité',
+      text: 'Le motif a franchi le seuil prévu par les lois. Il entre dans les espèces que la Terre sait relire.',
+    },
+    'rêve-né': {
+      title: `Le Jardinier imagine un futur de ${payload.kind ?? 'transformation'}`,
+      type: 'possibilité',
+      text: payload.story ?? 'Un futur possible rejoint l’Eau. Rien n’est encore appliqué.',
+    },
+    'tension-croyances': {
+      title: 'Les communautés ne donnent pas le même sens au fait',
+      type: 'croyance',
+      text: 'Elles partagent le constat que l’Arbre demande un soin. Elles divergent sur la réponse: préserver, transformer avec consentement ou attendre une preuve.',
+    },
+    soin: {
+      title: 'Le Jardinier tente un soin',
+      type: 'action',
+      text: `Il présente la ${proposalName(payload.dream)} au Feu et engage ${payload.energy_cost ?? 0} unités d’énergie. La Terre doit encore confirmer le résultat.`,
+    },
+    'reçu-transformation': {
+      title: 'Le soin est devenu une réalité vérifiable',
+      type: 'réalité',
+      text: `La vitalité de l’Arbre est passée de ${payload.before ?? '?'} à ${payload.after ?? '?'}. Le reçu relie le résultat à la ${proposalName(payload.dream)}.`,
+    },
+    'feu-refusé': {
+      title: 'Le World refuse la transformation',
+      type: 'réalité',
+      text: `Motif: ${payload.reason ?? 'limite inconnue'}. La Terre n’a pas été modifiée. Le refus protège une limite au lieu de simuler une réussite.`,
+    },
+    vague: {
+      title: 'L’Arbre propage un signal',
+      type: 'connaissance',
+      text: `La vague traverse ${(payload.path ?? []).map(actorName).join(' puis ')}. Son amplitude finale est ${payload.amplitude_at_edge ?? '?'}.`,
+    },
+    repos: {
+      title: 'Le Jardinier récupère son énergie',
+      type: 'réalité',
+      text: `Son énergie passe de ${payload.energy_before ?? '?'} à ${payload.energy_after ?? '?'}. ${payload.composted_dream ? `Le futur ${payload.composted_dream} retourne au compost.` : 'Aucun futur n’a été composté.'}`,
+    },
+    genèse: {
+      title: 'Le monde a été initialisé',
+      type: 'réalité',
+      text: `La version ${payload.laws_version ?? '?'} des lois a créé le premier état et son premier reçu.`,
+    },
+  };
+  return explanations[event.species] ?? {
+    title: event.species.replaceAll('-', ' '),
+    type: event.phase === 'eau' ? 'possibilité' : 'connaissance',
+    text: `${actorName(event.actor)} a produit cet événement pendant la phase ${phaseNames[event.phase] ?? event.phase}.`,
+  };
+}
+
+function actorMetric(id, being) {
+  if (id === 'world') return `tick ${state.tick} · ${state.status}`;
+  if (id === 'gardener') return `${being.energy ?? 0} unités d’énergie`;
+  if (id === 'root-tree') return `${Math.round((being.health ?? 0) * 100)} % de vitalité`;
+  if (id === 'watchers') return `${state.air.views} observations cumulées`;
+  if (being.belief) return `croyance: ${being.belief}`;
+  return 'état stable';
+}
+
+function actorCard(id) {
+  const being = id === 'world' ? actorExplanations.world : state.beings[id];
+  const explanation = actorExplanations[id] ?? {};
+  const relations = id === 'world' ? Object.values(state.beings).map((item) => item.name) : (being.relations ?? []).map((relation) => state.beings[relation]?.name ?? relation);
+  const actions = (explanation.actions ?? []).map((action) => `<li>${escapeHtml(action)}</li>`).join('');
+  return `<article class="actor-card${id === 'world' ? ' system-card' : ''}" data-phase="${being.phase ?? 'terre'}">
+    <div class="actor-card-head">
+      <div><span>${escapeHtml(being.kind ?? explanation.kind ?? 'habitant')}</span><h3>${escapeHtml(being.name ?? explanation.name ?? id)}</h3></div>
+      <strong>${escapeHtml(explanation.role ?? being.why)}</strong>
+    </div>
+    <p>${escapeHtml(explanation.summary ?? being.why)}</p>
+    <div class="actor-now">Maintenant: ${escapeHtml(actorMetric(id, being))}</div>
+    <details open>
+      <summary>Voir ses actions exactes</summary>
+      <ul>${actions}</ul>
+      <p><b>Limite:</b> ${escapeHtml(explanation.limit ?? 'Aucune limite décrite.')}</p>
+      ${relations.length ? `<p><b>Relié à:</b> ${escapeHtml(relations.join(', '))}</p>` : ''}
+    </details>
+  </article>`;
+}
+
+function guideView() {
+  const completedStep = cycleSteps.find((item) => item.step === state.tick % 8) ?? cycleSteps[0];
+  const completedIndex = cycleSteps.indexOf(completedStep);
+  const nextStep = cycleSteps[(completedIndex + 1) % cycleSteps.length];
+  const latest = state.last_event ?? events.at(-1);
+  const latestExplanation = latest ? explainEvent(latest) : null;
+  const cycle = cycleSteps.map((step, index) => `<li class="cycle-step${step.step === completedStep.step ? ' current' : ''}" data-phase="${step.phase}">
+    <span class="cycle-number">${index + 1}</span>
+    <div><strong>${escapeHtml(step.title)}</strong><small>${escapeHtml(step.actor)} · ${phaseNames[step.phase]}</small><p>${escapeHtml(step.detail)}</p></div>
+  </li>`).join('');
+  const actors = ['world', ...Object.keys(state.beings)].map(actorCard).join('');
+  const recent = events.slice(-8).reverse().map((event) => {
+    const explanation = explainEvent(event);
+    return `<article class="plain-event" data-type="${explanation.type}"><div><span>${escapeHtml(explanation.type)}</span><small>tick ${event.tick}</small></div><h3>${escapeHtml(explanation.title)}</h3><p>${escapeHtml(explanation.text)}</p></article>`;
+  }).join('');
+  return `<section class="guide-layout">
+    <header class="guide-hero">
+      <div class="guide-title"><span class="season-kicker">mode comprendre · saison ${escapeHtml(state.season)}</span><h1>Voici ce qui tourne réellement.</h1><p>World Lab répète un cycle de huit étapes. Des habitants observent, imaginent, débattent et tentent des transformations. Le World applique les lois et écrit ce qui s’est vraiment passé.</p></div>
+      <aside class="now-card">
+        <span>Étape terminée au tick ${state.tick}</span>
+        <h2>${escapeHtml(latestExplanation?.title ?? completedStep.title)}</h2>
+        <p>${escapeHtml(latestExplanation?.text ?? completedStep.detail)}</p>
+        <div class="now-next">Ensuite: <strong>${escapeHtml(nextStep.actor)} va ${escapeHtml(nextStep.title.toLowerCase())}</strong></div>
+      </aside>
+    </header>
+
+    <section class="guide-block cycle-block">
+      <div class="guide-heading"><span>01</span><div><h2>Comment le monde avance</h2><p>Une boucle fixe rend chaque cause visible. L’étape éclairée est celle qui vient de finir.</p></div></div>
+      <ol class="cycle-list">${cycle}</ol>
+    </section>
+
+    <section class="guide-block actors-block">
+      <div class="guide-heading"><span>02</span><div><h2>Qui fait quoi</h2><p>Chaque carte sépare le rôle annoncé, les actions réellement codées et les limites actuelles.</p></div></div>
+      <div class="actor-grid">${actors}</div>
+    </section>
+
+    <section class="guide-block events-block">
+      <div class="guide-heading"><span>03</span><div><h2>Ce qui vient de se passer</h2><p>Les événements techniques sont traduits en conséquences lisibles.</p></div></div>
+      <div class="guide-columns">
+        <div class="plain-events">${recent}</div>
+        <aside class="truth-legend">
+          <h3>Quatre statuts à ne pas confondre</h3>
+          <div data-type="réalité"><strong>Réalité</strong><p>État écrit ou reçu vérifiable. Il décrit ce qui a effectivement changé.</p></div>
+          <div data-type="connaissance"><strong>Connaissance</strong><p>Observation ou motif tiré du monde. Elle garde sa provenance et peut être incomplète.</p></div>
+          <div data-type="croyance"><strong>Croyance</strong><p>Position défendue par une communauté. Plusieurs croyances peuvent partager les mêmes faits.</p></div>
+          <div data-type="possibilité"><strong>Possibilité</strong><p>Futur imaginé dans l’Eau. Il ne devient réel qu’après le Feu et un reçu de la Terre.</p></div>
+        </aside>
+      </div>
+    </section>
+  </section>`;
+}
+
 function elements() {
   return `
     <div class="element-grid">
@@ -323,7 +543,7 @@ function render() {
   document.querySelector('#season').textContent = `saison ${state.season}`;
   document.querySelector('#tick').textContent = `tick ${state.tick}`;
   document.querySelector('#variant-name').textContent = variants.find((item) => item.key === variant).name;
-  const views = { orbit: orbitView, atlas: atlasView, depth: depthView };
+  const views = { guide: guideView, orbit: orbitView, atlas: atlasView, depth: depthView };
   document.querySelector('#app').innerHTML = views[variant]();
   document.querySelectorAll('[data-being]').forEach((button) => button.addEventListener('click', () => {
     selected = button.dataset.being;
