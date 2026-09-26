@@ -15,26 +15,31 @@ Question : peut-on comprendre le World en le regardant vivre, sans lire ses fich
 
 `Avenir Next` porte les mesures et les actions. `Iowan Old Style` porte les récits des êtres. Les deux sont des familles système avec des replis lisibles, sans chargement distant.
 
-## Trois vues
+## Quatre vues
 
 ```text
-Orbite                    Atlas                     Profondeur
-┌──────────────┐          ┌──────┬─────────┐        ┌──────────────┐
-│              │          │êtres │ champs  │        │     Air      │
-│    globe     │          │      │         │        ├──────────────┤
-│              │          │      │ rivière │        │     Eau      │
-├───────┬──────┤          ├──────┴─────────┤        ├──────────────┤
-│climat │ être │          │ événement      │        │     Feu      │
-└───────┴──────┘          └────────────────┘        ├──────────────┤
-                                                  │    Terre     │
-                                                  └──────────────┘
+Comprendre              Orbite                  Atlas                   Profondeur
+┌──────────────┐        ┌──────────────┐        ┌──────┬─────────┐      ┌────────────┐
+│ étape active │        │    globe     │        │êtres │ champs  │      │ Air · Eau  │
+├──────────────┤        ├───────┬──────┤        ├──────┴─────────┤      ├────────────┤
+│ cycle précis │        │climat │ être │        │ rivière temps │      │ Feu · Terre│
+├──────────────┤        └───────┴──────┘        └────────────────┘      └────────────┘
+│ rôles · faits│
+└──────────────┘
 ```
 
-Orbite donne la sensation du monde. Atlas montre ses relations. Profondeur montre comment un événement traverse les phases. Toutes les valeurs viennent du même état vivant.
+Comprendre est l’entrée par défaut. Elle traduit le cycle, les acteurs et les événements avant toute métaphore. Orbite donne ensuite la sensation du monde. Atlas montre ses relations. Profondeur montre comment un événement traverse les phases. Toutes les valeurs viennent du même état vivant.
+
+La hiérarchie répond à quatre questions dans cet ordre :
+
+1. Que vient-il de se passer ?
+2. Quelle étape produit ce résultat ?
+3. Qui peut agir, comment et avec quelles limites ?
+4. Ce que je lis est-il une réalité, une connaissance, une croyance ou une possibilité ?
 
 ## Une forme issue de l'état
 
-L'interface possède une grammaire commune aux trois vues :
+L'interface possède une grammaire commune aux quatre vues :
 
 * la saison change le récit, la palette et la forme du signe vivant ;
 * la pression étend les halos autour du globe ;
