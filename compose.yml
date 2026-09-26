@@ -1,0 +1,12 @@
+services:
+  world-lab:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - world-lab-data:/data
+    restart: unless-stopped
+
+volumes:
+  world-lab-data:
+

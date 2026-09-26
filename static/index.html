@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07101b">
+  <title>World Lab</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="sky-noise" aria-hidden="true"></div>
+  <header class="world-header">
+    <a class="identity" href="/" aria-label="World Lab, accueil">
+      <span class="identity-mark" aria-hidden="true"></span>
+      <span>World Lab</span>
+      <small>expérience vivante</small>
+    </a>
+    <div class="world-clock" aria-live="polite">
+      <span id="connection-dot" class="connection-dot"></span>
+      <span id="season">Éveil</span>
+      <span id="tick">tick 0</span>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1">
+    <div class="loading-state">
+      <div class="seed"></div>
+      <p>Le World se réveille.</p>
+    </div>
+  </main>
+
+  <nav class="view-switcher" aria-label="Choisir une vue">
+    <button data-view-step="-1" aria-label="Vue précédente">←</button>
+    <div>
+      <small>Manière de voir</small>
+      <strong id="variant-name">Orbite</strong>
+    </div>
+    <button data-view-step="1" aria-label="Vue suivante">→</button>
+  </nav>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
+
